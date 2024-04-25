@@ -1,0 +1,59 @@
+import requests
+import json
+from enum import IntEnum
+from enum import Enum
+from datetime import datetime
+
+class Cabin(IntEnum):
+    Flokehyttene = 6446
+    Gjendesheim = 4212
+    Fuglemyrhytta = 6516
+
+class Flokehyttene(IntEnum):
+    Vilgerd = 100416
+    Faxe = 100417
+    Geirhild = 100419
+    Tjodgerd = 100443
+    HordaKåre = 100420
+
+room_dict = {
+    6446: [100416, 100417, 100419, 100443, 100420],
+    6516: [100976]
+}
+
+base_url = "https://visbook.dnt.no/api"
+availability_url = lambda cabin_id, room_id, yyyy_mm: f"{base_url}/{cabin_id}/availability/{room_id}/{yyyy_mm}"
+
+
+def get_available_dates(cabin_id, room_id, yyyy_dash_mm):
+    response = requests.get(availability_url(cabin_id, room_id, yyyy_dash_mm))
+    
+    if response.status_code == 200:
+        json_response = json.loads(response.text)
+        
+        available_dates_list = []
+        for item in json_response["items"]:
+            for product in item["webProducts"]:
+                if product["availability"]["available"]:
+                    for step in product["availability"]["steps"]:
+                        available_dates_list.append(step["from"].split("T")[0])
+    
+    return available_dates_list
+
+
+print(get_available_dates(Cabin.Flokehyttene, Flokehyttene.Faxe, '2024-12'))
+
+class DesireType(Enum):
+    SpecificDates = 1
+    NonWorkDays = 2,
+    EntireWeekends = 3
+
+parse_date = lambda date_string: datetime.strptime(date_string, '%Y-%m-%d')
+
+is_weekend_day = lambda date: date.weekday() in [4, 5] # friday or saturday
+
+get_weekend_dates = lambda date_list: [date for date in date_list if is_weekend_day(parse_date(date))]
+
+get_specific_dates = lambda date_list, desired_dates: [date for date in date_list if date in desired_dates]
+    
+print(get_weekend_dates(get_available_dates(Cabin.Flokehyttene, Flokehyttene.Faxe, '2024-12')))
